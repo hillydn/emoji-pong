@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Emoji Pong</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Figtree:wght@400;600;700&display=swap">
+<style>
+/* Layout: oyun alanı solda, canlı skor tablosu sağda; telefonda alt alta. Tek koyu tema, arka plan hızla birlikte kararır. */
+:root {
+  --ink: #0b0a1a;
+  --panel: #15132b;
+  --line: #2b2852;
+  --text: #ece9ff;
+  --muted: #9a96c7;
+  --hot: #ff3d9a;
+  --warm: #ffb23d;
+  --ok: #5ee6a8;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 15px;
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 24px; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+h1 { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; margin: 0 0 4px; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; color: var(--muted); }
+.sub { margin: 0 0 14px; color: var(--muted); text-wrap: balance; }
+
+.stage { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #1a1440; touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas { display: block; width: 100%; aspect-ratio: 9 / 14; max-width: 100%; touch-action: none; cursor: none; }
+.hud { position: absolute; inset: 14px 16px auto 16px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+.score { font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
+.bestmini { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bestmini b { display: block; font-family: var(--display); font-size: 16px; color: var(--text); }
+.overlay { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; padding: 24px; background: rgba(8, 6, 24, 0.55); }
+.overlay[hidden] { display: none; }
+.overlay .big { font-family: var(--display); font-weight: 800; font-size: 28px; }
+.overlay .hint { color: var(--muted); }
+.overlay .newbest { color: var(--warm); font-weight: 700; }
+
+.controls { display: grid; gap: 10px; margin-top: 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
+input[type="text"] { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-width: 0; }
+input[type="text"]:focus-visible, button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
+#nick { flex: 1 1 140px; }
+#emoji { width: 64px; text-align: center; font-size: 20px; }
+.picks { display: flex; gap: 6px; flex-wrap: wrap; }
+.picks button { font-size: 20px; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
+.picks button:hover { border-color: var(--hot); }
+.status { font-size: 12px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); }
+
+.board { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-width: 0; }
+.lead { display: grid; gap: 2px; padding: 14px; margin: 12px 0; border-radius: 14px; background: linear-gradient(120deg, rgba(255,61,154,.22), rgba(255,178,61,.18)); border: 1px solid rgba(255,61,154,.4); }
+.lead .k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--warm); font-weight: 700; }
+.lead .v { font-family: var(--display); font-weight: 800; font-size: 20px; overflow-wrap: anywhere; }
+.lead .s { color: var(--muted); font-size: 13px; }
+ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+li { display: grid; grid-template-columns: 28px 30px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+li.me { background: rgba(94, 230, 255, 0.1); outline: 1px solid rgba(94, 230, 255, 0.35); }
+li .rk { color: var(--muted); font-weight: 700; }
+li .em { font-size: 20px; text-align: center; }
+li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+li .sc { text-align: right; }
+li .sc b { font-family: var(--display); font-size: 15px; }
+li .sc small { display: block; color: var(--muted); font-size: 11px; }
+.empty { color: var(--muted); padding: 14px 4px; }
+.mystats { display: flex; gap: 18px; margin: 12px 0 4px; flex-wrap: wrap; }
+.mystats div { font-size: 12px; color: var(--muted); }
+.mystats b { display: block; font-family: var(--display); font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--hot); color: #fff; font-weight: 700; padding: 10px 16px; border-radius: 999px; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; max-width: calc(100vw - 32px); text-align: center; }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<div class="wrap">
+  <section>
+    <h1>Emoji Pong</h1>
+    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır.</p>
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Oyun alanı"></canvas>
+      <div class="hud">
+        <div class="score" id="score">0</div>
+        <div class="bestmini">en iyin<b id="bestmini">0</b></div>
+      </div>
+      <div class="overlay" id="overlay">
+        <div class="big" id="ovTitle">Başla</div>
+        <div class="hint" id="ovHint">Ekrana dokun, parmağınla çubuğu kaydır</div>
+        <div class="newbest" id="ovBest" hidden></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="row">
+        <div style="display:grid;gap:4px"><label for="emoji">Emoji</label><input id="emoji" type="text" maxlength="8" value="🏀" autocomplete="off"></div>
+        <div style="display:grid;gap:4px;flex:1 1 140px;min-width:0"><label for="nick">Adın</label><input id="nick" type="text" maxlength="20" placeholder="Takma ad" autocomplete="off"></div>
+      </div>
+      <div class="picks" id="picks"></div>
+      <div class="status" id="status"></div>
+    </div>
+  </section>
+
+  <section class="board">
+    <h2>Skor tablosu</h2>
+    <div class="lead" id="lead" hidden>
+      <span class="k">Şu an zirvede</span>
+      <span class="v" id="leadName"></span>
+      <span class="s" id="leadScore"></span>
+    </div>
+    <div class="mystats" id="mystats" hidden>
+      <div>rekorun<b id="msBest">0</b></div>
+      <div>oynadığın oyun<b id="msGames">0</b></div>
+      <div>toplam vuruş<b id="msHits">0</b></div>
+    </div>
+    <ol id="list"></ol>
+    <div class="empty" id="boardMsg">Tablo yükleniyor…</div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+/* Firebase ayarların: Firebase konsolunda Proje ayarları > Web uygulaması bölümünden kopyala */
+var FIREBASE_CONFIG = {
+  apiKey: "BURAYA",
+  authDomain: "BURAYA",
+  projectId: "BURAYA",
+  appId: "BURAYA"
+};
+(function () {
+  var ok = FIREBASE_CONFIG.apiKey !== "BURAYA";
+  var ready = Promise.resolve(null), fdb = null;
+  if (ok) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fdb = firebase.firestore();
+    ready = firebase.auth().signInAnonymously().then(function (c) { return c.user; }).catch(function () { return null; });
+  }
+  function wrap(s) { return { id: s.id, exists: s.exists, data: function () { return s.data(); } }; }
+  function mk(q) {
+    return {
+      orderBy: function (f, d) { return mk(q.orderBy(f, d)); },
+      limit: function (n) { return mk(q.limit(n)); },
+      onSnapshot: function (next, err) { return q.onSnapshot(function (s) { next({ docs: s.docs.map(wrap) }); }, err); }
+    };
+  }
+  window.claude = { use: async function (name) {
+    var u = await ready; if (!u) return null;
+    if (name === "user") return { id: async function () { return u.uid; }, name: async function () { return ""; } };
+    if (name === "db") return {
+      doc: function (p) { var r = fdb.doc(p); return { get: async function () { return wrap(await r.get()); }, set: function (d) { return r.set(d); } }; },
+      collection: function (p) { return mk(fdb.collection(p)); }
+    };
+    return null;
+  } };
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var W = 360, H = 560;
+  var cv = $("cv"), ctx = cv.getContext("2d");
+  var dpr = 1;
+
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  // ---------- ayarlar ----------
+  var emoji = lsGet("ep_emoji", "🏀");
+  var nick = lsGet("ep_nick", "");
+  var localBest = parseInt(lsGet("ep_best", "0"), 10) || 0;
+  $("emoji").value = emoji;
+  $("nick").value = nick;
+  $("bestmini").textContent = localBest;
+  ["🏀", "⚽", "🐸", "🔥", "🍕", "😎", "👾", "🍉"].forEach(function (e) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = e; b.setAttribute("aria-label", e + " seç");
+    b.addEventListener("click", function () { setEmoji(e); });
+    $("picks").appendChild(b);
+  });
+  function firstGlyph(s) {
+    s = (s || "").trim();
+    if (!s) return "🏀";
+    if (window.Intl && Intl.Segmenter) { var it = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s)[Symbol.iterator]().next(); return it.value ? it.value.segment : s; }
+    return Array.from(s)[0];
+  }
+  function setEmoji(e) { emoji = firstGlyph(e); $("emoji").value = emoji; lsSet("ep_emoji", emoji); pushProfile(); }
+  $("emoji").addEventListener("change", function () { setEmoji(this.value); });
+  $("nick").addEventListener("change", function () { nick = this.value.trim().slice(0, 20); lsSet("ep_nick", nick); pushProfile(); });
+
+  // ---------- oyun ----------
+  var V0 = 260, VMAX = 950, GROW = 1.065;
+  var PW = 92, PH = 12, PY = H - 54, R = 22;
+  var state = "idle"; // idle | play | over
+  var ball, paddleX = W / 2, targetX = W / 2, score = 0, speed = V0, pulses = [], lastEnd = 0, keys = { l: 0, r: 0 };
+
+  function reset() {
+    score = 0; speed = V0; pulses = [];
+    ball = { x: paddleX, y: PY - R - 4, vx: 0, vy: 0 };
+    $("score").textContent = "0";
+  }
+  function launch() {
+    var a = (Math.random() * 40 - 20) * Math.PI / 180;
+    ball.vx = Math.sin(a) * speed; ball.vy = -Math.cos(a) * speed;
+    state = "play"; $("overlay").hidden = true;
+  }
+  reset();
+
+  var audio = null;
+  function blip(n) {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      var pent = [0, 2, 4, 7, 9], semis = pent[n % 5] + 12 * Math.min(Math.floor(n / 5), 3);
+      var o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+      o.type = "triangle"; o.frequency.value = 262 * Math.pow(2, semis / 12);
+      g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + 0.2);
+    } catch (e) {}
+  }
+  function thud() {
+    try {
+      if (!audio) return;
+      var o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+      o.type = "sawtooth"; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + 0.5);
+    } catch (e) {}
+  }
+
+  function step(dt) {
+    var kx = (keys.r - keys.l) * 520 * dt;
+    if (kx) targetX += kx;
+    targetX = Math.max(PW / 2, Math.min(W - PW / 2, targetX));
+    paddleX += (targetX - paddleX) * Math.min(1, dt * 60);
+    if (state === "idle") { ball.x = paddleX; ball.y = PY - R - 4; return; }
+    if (state !== "play") return;
+    var sub = 5, h = dt / sub;
+    for (var i = 0; i < sub; i++) {
+      ball.x += ball.vx * h; ball.y += ball.vy * h;
+      if (ball.x < R) { ball.x = R; ball.vx = Math.abs(ball.vx); }
+      if (ball.x > W - R) { ball.x = W - R; ball.vx = -Math.abs(ball.vx); }
+      if (ball.y < R + 6) { ball.y = R + 6; ball.vy = Math.abs(ball.vy); }
+      if (ball.vy > 0 && ball.y + R * 0.7 >= PY && ball.y - R * 0.7 < PY + PH && Math.abs(ball.x - paddleX) <= PW / 2 + R) {
+        var off = Math.max(-1, Math.min(1, (ball.x - paddleX) / (PW / 2 + R)));
+        var a = off * 62 * Math.PI / 180;
+        score++; speed = Math.min(VMAX, speed * GROW);
+        ball.vx = Math.sin(a) * speed; ball.vy = -Math.cos(a) * speed; ball.y = PY - R * 0.7;
+        pulses.push({ x: ball.x, y: PY, t: 0 });
+        $("score").textContent = score; blip(score);
+      }
+      if (ball.y > H + R) { gameOver(); return; }
+    }
+  }
+
+  function mix(a, b, t) { return Math.round(a + (b - a) * t); }
+  function draw(dt) {
+    var k = Math.min(1, (speed - V0) / (VMAX - V0));
+    var bg = "rgb(" + mix(38, 6, k) + "," + mix(22, 5, k) + "," + mix(98, 16, k) + ")";
+    ctx.setTransform(dpr * cv.width / (W * dpr), 0, 0, dpr * cv.width / (W * dpr), 0, 0);
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // ritim çizgileri
+    ctx.strokeStyle = "rgba(255,255,255," + (0.05 + 0.05 * (1 - k)) + ")"; ctx.lineWidth = 1;
+    for (var y = 40; y < H; y += 56) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (var i = pulses.length - 1; i >= 0; i--) {
+      var p = pulses[i]; p.t += dt;
+      if (p.t > 0.45) { pulses.splice(i, 1); continue; }
+      ctx.strokeStyle = "rgba(255,178,61," + (1 - p.t / 0.45) * 0.8 + ")"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 10 + p.t * 150, 0, Math.PI * 2); ctx.stroke();
+    }
+    // çubuk
+    var g = ctx.createLinearGradient(paddleX - PW / 2, 0, paddleX + PW / 2, 0);
+    g.addColorStop(0, "#ff3d9a"); g.addColorStop(1, "#ffb23d");
+    ctx.fillStyle = g; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(paddleX - PW / 2, PY, PW, PH, 6); else ctx.rect(paddleX - PW / 2, PY, PW, PH);
+    ctx.fill();
+    // top
+    ctx.font = (R * 2) + "px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff"; ctx.fillText(emoji, ball.x, ball.y + 2);
+  }
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = cv.getBoundingClientRect().width || W;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * dpr * H / W);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.033, (now - last) / 1000); last = now;
+    step(dt); draw(dt); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  function xFromEvent(e) { var r = cv.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; }
+  cv.addEventListener("pointermove", function (e) { targetX = xFromEvent(e); });
+  cv.addEventListener("pointerdown", function (e) {
+    targetX = xFromEvent(e);
+    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (x) {} }
+    startIfReady();
+  });
+  function startIfReady() {
+    if (state === "play") return;
+    if (state === "over") { if (performance.now() - lastEnd < 500) return; reset(); }
+    launch();
+  }
+  window.addEventListener("keydown", function (e) {
+    if (e.target && e.target.tagName === "INPUT") return;
+    if (e.key === "ArrowLeft" || e.key === "a") keys.l = 1;
+    else if (e.key === "ArrowRight" || e.key === "d") keys.r = 1;
+    else if (e.key === " " || e.key === "Enter") { e.preventDefault(); startIfReady(); }
+  });
+  window.addEventListener("keyup", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "a") keys.l = 0;
+    if (e.key === "ArrowRight" || e.key === "d") keys.r = 0;
+  });
+
+  function gameOver() {
+    state = "over"; lastEnd = performance.now(); thud();
+    var isBest = score > localBest;
+    if (isBest) { localBest = score; lsSet("ep_best", String(score)); }
+    $("bestmini").textContent = localBest;
+    $("ovTitle").textContent = score + " vuruş";
+    $("ovHint").textContent = "Tekrar oynamak için dokun";
+    var nb = $("ovBest"); nb.hidden = !isBest; nb.textContent = "Yeni rekor";
+    $("overlay").hidden = false;
+    recordGame(score);
+  }
+
+  // ---------- kalıcı kayıt ve ortak tablo ----------
+  var db = null, uid = null, mine = { best: 0, games: 0, hits: 0 }, haveRemote = false, chain = Promise.resolve(), prevLeader = null;
+
+  function setStatus(msg, ok) { var s = $("status"); s.textContent = msg; s.className = "status" + (ok ? " ok" : ""); }
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(function () { t.classList.remove("on"); }, 3200); }
+
+  function payload() {
+    return { nick: nick || "Oyuncu", emoji: emoji, best: mine.best, games: mine.games, hits: mine.hits, bestAt: mine.bestAt || 0, updatedAt: Date.now() };
+  }
+  function write() {
+    if (!db || !uid) return;
+    var data = payload();
+    chain = chain.then(function () { return db.doc("players/" + uid).set(data); })
+      .then(function () { setStatus("Kaydedildi, hiçbir zaman kaybolmaz.", true); })
+      .catch(function (e) { setStatus("Skor kaydedilemedi" + (e && e.code === "invalid_argument" ? ": bu bağlantıyla yazma izni yok." : ". Biraz sonra tekrar dene."), false); });
+  }
+  function recordGame(sc) {
+    mine.games += 1; mine.hits += sc;
+    if (sc > mine.best) { mine.best = sc; mine.bestAt = Date.now(); }
+    renderMine();
+    if (db && uid) write();
+  }
+  function pushProfile() { if (db && uid && mine.games > 0) write(); }
+  function renderMine() {
+    $("mystats").hidden = !(db && uid);
+    $("msBest").textContent = mine.best; $("msGames").textContent = mine.games; $("msHits").textContent = mine.hits;
+  }
+
+  function renderBoard(docs) {
+    var rows = docs.map(function (d) { var v = d.data(); v.id = d.id; return v; }).filter(function (v) { return v.best > 0; });
+    rows.sort(function (a, b) { return b.best - a.best || (a.bestAt || 0) - (b.bestAt || 0); });
+    var list = $("list"); list.textContent = "";
+    $("boardMsg").hidden = rows.length > 0;
+    $("boardMsg").textContent = "Henüz skor yok. İlk rekor senin olsun.";
+    if (!rows.length) { $("lead").hidden = true; return; }
+    var top = rows[0];
+    $("lead").hidden = false;
+    $("leadName").textContent = (top.emoji || "") + " " + (top.nick || "Oyuncu");
+    $("leadScore").textContent = top.best + " vuruş, " + top.games + " oyunda";
+    if (prevLeader !== null && prevLeader !== top.id) toast("Zirve değişti: " + (top.nick || "Oyuncu") + " " + top.best);
+    prevLeader = top.id;
+    rows.slice(0, 50).forEach(function (v, i) {
+      var li = document.createElement("li"); if (v.id === uid) li.className = "me";
+      var rk = document.createElement("span"); rk.className = "rk"; rk.textContent = i + 1;
+      var em = document.createElement("span"); em.className = "em"; em.textContent = v.emoji || "🏀";
+      var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = v.nick || "Oyuncu";
+      var sc = document.createElement("span"); sc.className = "sc";
+      var b = document.createElement("b"); b.textContent = v.best;
+      var sm = document.createElement("small"); sm.textContent = v.games + " oyun";
+      sc.appendChild(b); sc.appendChild(sm);
+      li.appendChild(rk); li.appendChild(em); li.appendChild(nm); li.appendChild(sc);
+      list.appendChild(li);
+    });
+  }
+
+  (async function init() {
+    var c = window.claude && window.claude.use;
+    if (!c) { offline(); return; }
+    try {
+      db = await window.claude.use("db");
+      var user = await window.claude.use("user");
+      uid = user ? await user.id() : null;
+      if (user && !nick) { try { nick = (await user.name() || "").slice(0, 20); $("nick").value = nick; } catch (e) {} }
+    } catch (e) { db = null; }
+    if (!db || !uid) { offline(); return; }
+    try {
+      var snap = await db.doc("players/" + uid).get();
+      if (snap.exists) {
+        var v = snap.data();
+        mine = { best: v.best || 0, games: v.games || 0, hits: v.hits || 0, bestAt: v.bestAt || 0 };
+        if (v.nick && !lsGet("ep_nick", "")) { nick = v.nick; $("nick").value = nick; }
+        if (v.emoji && lsGet("ep_emoji", "") === "") { setEmoji(v.emoji); }
+      }
+      if (localBest > mine.best) { mine.best = localBest; mine.bestAt = mine.bestAt || Date.now(); if (mine.games === 0) { mine.games = 1; } write(); }
+      if (mine.best > localBest) { localBest = mine.best; lsSet("ep_best", String(localBest)); $("bestmini").textContent = localBest; }
+      renderMine(); setStatus("Skorların bu hesapta kayıtlı.", true);
+      db.collection("players").orderBy("best", "desc").limit(100).onSnapshot(
+        function (s) { renderBoard(s.docs); },
+        function () { $("boardMsg").hidden = false; $("boardMsg").textContent = "Tablo şu an yüklenemedi."; }
+      );
+    } catch (e) { offline(); }
+  })();
+
+  function offline() {
+    $("boardMsg").hidden = false;
+    $("boardMsg").textContent = "Ortak tablo şu an kullanılamıyor. Rekorun bu cihazda saklanıyor.";
+    setStatus("Rekorun yalnızca bu cihazda saklanıyor.", false);
+  }
+})();
+</script>
+
+</body>
+</html>
