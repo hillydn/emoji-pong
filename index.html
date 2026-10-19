@@ -92,7 +92,7 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
 <div class="wrap">
   <section>
     <h1>Emoji Pong</h1>
-    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır.</p>
+    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır. <small>(v3)</small></p>
     <div class="stage" id="stage">
       <canvas id="cv" aria-label="Oyun alanı"></canvas>
       <div class="hud">
@@ -305,10 +305,10 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
   requestAnimationFrame(frame);
 
   function xFromEvent(e) { var r = cv.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; }
-  cv.addEventListener("pointermove", function (e) { targetX = xFromEvent(e); });
-  cv.addEventListener("pointerdown", function (e) {
+  $("stage").addEventListener("pointermove", function (e) { targetX = xFromEvent(e); });
+  $("stage").addEventListener("pointerdown", function (e) {
     targetX = xFromEvent(e);
-    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    try { $("stage").setPointerCapture(e.pointerId); } catch (x) {}
     if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (x) {} }
     startIfReady();
   });
