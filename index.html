@@ -23,7 +23,7 @@
   --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: dark;
 }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 body {
   margin: 0;
@@ -41,7 +41,7 @@ h1 { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spac
 h2 { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0; color: var(--muted); }
 .sub { margin: 0 0 14px; color: var(--muted); text-wrap: balance; }
 
-.stage { position: relative; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #1a1440; touch-action: none; user-select: none; -webkit-user-select: none; }
+.stage { position: relative; width: min(100%, calc((100vh - 150px) * 9 / 14)); width: min(100%, calc((100svh - 150px) * 9 / 14)); min-width: min(100%, 240px); margin-inline: auto; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #1a1440; touch-action: none; user-select: none; -webkit-user-select: none; }
 canvas { display: block; width: 100%; aspect-ratio: 9 / 14; max-width: 100%; touch-action: none; cursor: none; }
 .hud { position: absolute; inset: 14px 16px auto 16px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
 .score { font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -56,7 +56,7 @@ canvas { display: block; width: 100%; aspect-ratio: 9 / 14; max-width: 100%; tou
 .controls { display: grid; gap: 10px; margin-top: 14px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 label { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
-input[type="text"] { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-width: 0; }
+input[type="text"] { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-width: 0; font-size: 16px; }
 input[type="text"]:focus-visible, button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
 #nick { flex: 1 1 140px; }
 #emoji { width: 64px; text-align: center; font-size: 20px; }
@@ -136,18 +136,10 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
 <script>
-/* Firebase ayarların: Firebase konsolunda Proje ayarları > Web uygulaması bölümünden kopyala */
-var FIREBASE_CONFIG = {
-  apiKey: "AIzaSyA-uWqzQ8-f2Z_O90Oxikod-Txnd2a55jA",
-  authDomain: "emoji-pong.firebaseapp.com",
-  projectId: "emoji-pong",
-  storageBucket: "emoji-pong.firebasestorage.app",
-  messagingSenderId: "936758043433",
-  appId: "1:936758043433:web:25cad69155643ad9948d38"
-};
 (function () {
-  var ok = FIREBASE_CONFIG.apiKey !== "BURAYA";
+  var ok = typeof FIREBASE_CONFIG !== "undefined" && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "BURAYA";
   var ready = Promise.resolve(null), fdb = null;
   if (ok) {
     firebase.initializeApp(FIREBASE_CONFIG);
@@ -321,6 +313,7 @@ var FIREBASE_CONFIG = {
     startIfReady();
   });
   function startIfReady() {
+    if (audio && audio.state === "suspended") { try { audio.resume(); } catch (x) {} }
     if (state === "play") return;
     if (state === "over") { if (performance.now() - lastEnd < 500) return; reset(); }
     launch();
