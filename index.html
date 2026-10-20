@@ -67,6 +67,11 @@ input[type="text"]:focus-visible, button:focus-visible { outline: 2px solid var(
 .status.ok { color: var(--ok); }
 
 .board { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-width: 0; }
+.hof { display: grid; gap: 8px; margin: 12px 0 0; }
+.hof .item { display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px dashed rgba(255, 61, 154, 0.55); background: rgba(255, 61, 154, 0.08); }
+.hof .k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hot); font-weight: 700; }
+.hof .v { font-weight: 700; overflow-wrap: anywhere; }
+.badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(255, 61, 154, 0.2); color: #ff8fc4; vertical-align: middle; white-space: nowrap; }
 .lead { display: grid; gap: 2px; padding: 14px; margin: 12px 0; border-radius: 14px; background: linear-gradient(120deg, rgba(255,61,154,.22), rgba(255,178,61,.18)); border: 1px solid rgba(255,61,154,.4); }
 .lead .k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--warm); font-weight: 700; }
 .lead .v { font-family: var(--display); font-weight: 800; font-size: 20px; overflow-wrap: anywhere; }
@@ -92,7 +97,7 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
 <div class="wrap">
   <section>
     <h1>Emoji Pong</h1>
-    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır. <small>(v3)</small></p>
+    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır. <small>(v4)</small></p>
     <div class="stage" id="stage">
       <canvas id="cv" aria-label="Oyun alanı"></canvas>
       <div class="hud">
@@ -117,6 +122,7 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
 
   <section class="board">
     <h2>Skor tablosu</h2>
+    <div class="hof" id="hof"></div>
     <div class="lead" id="lead" hidden>
       <span class="k">Şu an zirvede</span>
       <span class="v" id="leadName"></span>
@@ -370,7 +376,18 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
   }
 
   function renderBoard(docs) {
-    var rows = docs.map(function (d) { var v = d.data(); v.id = d.id; return v; }).filter(function (v) { return v.best > 0; });
+    var all = docs.map(function (d) { var v = d.data(); v.id = d.id; return v; });
+    var badges = (typeof BADGES !== "undefined" && BADGES) || {};
+    var hof = $("hof"); hof.textContent = "";
+    Object.keys(badges).forEach(function (id) {
+      var who = all.filter(function (v) { return v.id === id; })[0];
+      if (!who) return;
+      var it = document.createElement("div"); it.className = "item";
+      var k = document.createElement("span"); k.className = "k"; k.textContent = "\u2665 " + badges[id];
+      var val = document.createElement("span"); val.className = "v"; val.textContent = (who.emoji || "") + " " + (who.nick || "Oyuncu");
+      it.appendChild(k); it.appendChild(val); hof.appendChild(it);
+    });
+    var rows = all.filter(function (v) { return v.best > 0; });
     rows.sort(function (a, b) { return b.best - a.best || (a.bestAt || 0) - (b.bestAt || 0); });
     var list = $("list"); list.textContent = "";
     $("boardMsg").hidden = rows.length > 0;
@@ -387,6 +404,7 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
       var rk = document.createElement("span"); rk.className = "rk"; rk.textContent = i + 1;
       var em = document.createElement("span"); em.className = "em"; em.textContent = v.emoji || "🏀";
       var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = v.nick || "Oyuncu";
+      if (badges[v.id]) { var bd = document.createElement("span"); bd.className = "badge"; bd.textContent = badges[v.id]; nm.appendChild(bd); }
       var sc = document.createElement("span"); sc.className = "sc";
       var b = document.createElement("b"); b.textContent = v.best;
       var sm = document.createElement("small"); sm.textContent = v.games + " oyun";
