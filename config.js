@@ -6,3 +6,4 @@
   messagingSenderId: "936758043433",
   appId: "1:936758043433:web:25cad69155643ad9948d38"
    };
+var BADGES = { "dN93cutC16YySiCAL2HusFDSq6H2": "Gönüllerin Birincisi" };
