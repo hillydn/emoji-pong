@@ -97,7 +97,7 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
 <div class="wrap">
   <section>
     <h1>Emoji Pong</h1>
-    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır. <small>(v4)</small></p>
+    <p class="sub">Emojiyi sektir, düşürme. Her vuruşta hızlanır. <small>(v5)</small></p>
     <div class="stage" id="stage">
       <canvas id="cv" aria-label="Oyun alanı"></canvas>
       <div class="hud">
@@ -376,7 +376,9 @@ li .sc small { display: block; color: var(--muted); font-size: 11px; }
   }
 
   function renderBoard(docs) {
-    var all = docs.map(function (d) { var v = d.data(); v.id = d.id; return v; });
+    var hidden = (typeof HIDDEN !== "undefined" && HIDDEN) || [];
+    var all = docs.map(function (d) { var v = d.data(); v.id = d.id; return v; })
+      .filter(function (v) { return hidden.indexOf(v.id) < 0; });
     var badges = (typeof BADGES !== "undefined" && BADGES) || {};
     var hof = $("hof"); hof.textContent = "";
     Object.keys(badges).forEach(function (id) {
